@@ -48,29 +48,31 @@ const features = [
 
 const FeaturesSection = () => {
   return (
-    <div className="mt-16 md:mt-0">
-      <h2 className="text-4xl lg:text-5xl font-bold lg:tracking-tight">
-        The Power of Object Recognition
-      </h2>
-      <p className="text-lg mt-4 text-slate-600">
-        Explore our website to learn more about our capabilities, applications,
-        and how we can empower your business or project today.
-      </p>
+    <div className="max-w-screen-xl mx-auto px-5">
+      <div className="mt-16 md:mt-0">
+        <h2 className="text-4xl lg:text-5xl font-bold lg:tracking-tight">
+          The Power of Object Recognition
+        </h2>
+        <p className="text-lg mt-4 text-slate-600">
+          Explore our website to learn more about our capabilities,
+          applications, and how we can empower your business or project today.
+        </p>
 
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 mt-16 gap-16">
-        {features.map((item, index) => (
-          <div key={index} className="flex gap-4 items-start">
-            <div className="mt-1 bg-black rounded-full p-2 w-8 h-8 shrink-0">
-              <item.icon className="text-white" />
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 mt-16 gap-16">
+          {features.map((item, index) => (
+            <div key={index} className="flex gap-4 items-start">
+              <div className="mt-1 bg-black rounded-full p-2 w-8 h-8 shrink-0">
+                <item.icon className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">{item.title}</h3>{" "}
+                <p className="text-slate-500 mt-2 leading-relaxed">
+                  {item.description}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">{item.title}</h3>{" "}
-              <p className="text-slate-500 mt-2 leading-relaxed">
-                {item.description}
-              </p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
