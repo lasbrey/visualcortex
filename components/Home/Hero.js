@@ -21,7 +21,7 @@ const Hero = () => {
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Link
-              href="#"
+              href="/register"
               target="_blank"
               rel="noopener"
               className="bg-black text-white p-4 px-8 rounded hover:bg-white hover:border-2 hover:text-black"
@@ -32,7 +32,7 @@ const Hero = () => {
               size="lg"
               rel="noopener"
               className="p-4 px-8"
-              href=""
+              href="/login"
               target="_blank"
             >
               Login

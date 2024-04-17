@@ -2,13 +2,14 @@
 import React, { useState } from "react";
 import Dropdown from "./dropdown";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; 
+import { UserAuth } from "@/context/AuthContext"; 
 
 const menuitems = [
   {
     title: "Features",
     path: "/features",
   },
-
   {
     title: "About",
     path: "/about",
@@ -28,6 +29,8 @@ const menuitems = [
 ];
 
 const Header = () => {
+  // const { user } = UserAuth();
+
   const [open, setOpen] = useState(false);
 
   const toggleMenu = () => {
@@ -92,10 +95,15 @@ const Header = () => {
             ))}
           </ul>
           <div className="lg:hidden flex items-center mt-3 gap-4">
-            <Link href="#" block size="md">
-              Log in
-            </Link>
-            <Link href="#" size="md" block>
+            {/* {user && (
+              <Link href="/dashboard">Dashboard</Link>
+            )} */}
+            <Link href="/login">Log in</Link>
+            <Link
+              className="bg-black text-white p-3"
+              href="/register"
+              size="md"
+            >
               Sign up
             </Link>
           </div>
@@ -118,3 +126,4 @@ const Header = () => {
 };
 
 export default Header;
+
