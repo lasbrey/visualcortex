@@ -1,30 +1,36 @@
 'use client'
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
 import * as tf from "@tensorflow/tfjs";
 import "@tensorflow/tfjs";
-import * as cocoSsd from "@tensorflow-models/coco-ssd"; // Import cocoSsd module
+import * as cocoSsd from "@tensorflow-models/coco-ssd";
 
 import Features from "@/components/Home/Features";
 import { UserAuth } from "@/context/authContext";
 
 const Dashboard = () => {
-  const { user } = UserAuth(); // Access the user from AuthContext
+  const { user } = UserAuth();
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [selectedCamera, setSelectedCamera] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  let modelPromise = useRef(null);
-  const router = useRouter(); // Initialize useRouter
+  const modelPromise = useRef(null);
+  const router = useRouter();
 
   useEffect(() => {
     const loadModel = async () => {
       await tf.ready();
-      const model = await cocoSsd.load(); // Use cocoSsd from the imported module
+      const model = await cocoSsd.load();
       modelPromise.current = model;
     };
 
     if (isCameraOpen) {
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: selectedCamera
+          }
+        })
         .then((stream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -41,21 +47,27 @@ const Dashboard = () => {
     }
 
     return () => {
-      // Clean up
       if (videoRef.current && videoRef.current.srcObject) {
         videoRef.current.srcObject.getTracks().forEach((track) => {
           track.stop();
         });
       }
     };
-  }, [isCameraOpen]);
+  }, [isCameraOpen, selectedCamera]);
 
   useEffect(() => {
-    if (isCameraOpen && modelPromise.current) {
-      const model = modelPromise.current;
-      detectObjects(model);
+    if (!user) {
+      router.push("/");
     }
-  }, [isCameraOpen]);
+  }, [user]);
+
+  const handleOpenCamera = () => {
+    setIsCameraOpen(true);
+  };
+
+  const handleCameraToggle = () => {
+    setSelectedCamera((prevCamera) => (prevCamera === 'environment' ? 'user' : 'environment'));
+  };
 
   const detectObjects = async (model) => {
     const video = videoRef.current;
@@ -67,7 +79,6 @@ const Dashboard = () => {
       const predictions = await model.detect(video);
       console.log(predictions);
 
-      // Draw bounding boxes
       predictions.forEach((prediction) => {
         const [x, y, width, height] = prediction.bbox;
         context.beginPath();
@@ -89,15 +100,12 @@ const Dashboard = () => {
     detectFrame();
   };
 
-  const handleOpenCamera = () => {
-    setIsCameraOpen(true);
-  };
-
   useEffect(() => {
-    if (!user) {
-      router.push("/"); // Redirect to home page if user is not logged in
+    if (isCameraOpen && modelPromise.current) {
+      const model = modelPromise.current;
+      detectObjects(model);
     }
-  }, [user]);
+  }, [isCameraOpen]);
 
   return (
     <section>
@@ -115,7 +123,14 @@ const Dashboard = () => {
               className="px-8 py-3 m-2 text-lg font-semibold rounded bg-gray-100 text-gray-900"
               onClick={handleOpenCamera}
             >
-              Camera
+              Open Camera
+            </button>
+            <button
+              type="button"
+              className="px-8 py-3 m-2 text-lg font-semibold rounded bg-gray-100 text-gray-900"
+              onClick={handleCameraToggle}
+            >
+              Toggle Camera
             </button>
           </div>
         </div>
@@ -131,7 +146,7 @@ const Dashboard = () => {
           />
           <canvas
             ref={canvasRef}
-            style={{ display: "none" }}
+            style={{ display: "block" }} // Set display to block to make the canvas visible
             width={640}
             height={480}
           />
