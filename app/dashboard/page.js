@@ -1,160 +1,130 @@
 'use client'
-import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import * as tf from "@tensorflow/tfjs";
-import "@tensorflow/tfjs";
-import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import { useEffect, useState } from 'react';
 
-import Features from "@/components/Home/Features";
-import { UserAuth } from "@/context/authContext";
-
-const Dashboard = () => {
-  const { user } = UserAuth();
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [selectedCamera, setSelectedCamera] = useState(null);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const modelPromise = useRef(null);
-  const router = useRouter();
+const Home = () => {
+  const [model, setModel] = useState(null);
+  const [predictions, setPredictions] = useState([]);
 
   useEffect(() => {
     const loadModel = async () => {
-      await tf.ready();
-      const model = await cocoSsd.load();
-      modelPromise.current = model;
+      const script1 = document.createElement('script');
+      script1.src = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js";
+      script1.onload = () => {
+        const script2 = document.createElement('script');
+        script2.src = "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd";
+        script2.onload = async () => {
+          const cocoSsd = window['cocoSsd'];
+          const loadedModel = await cocoSsd.load();
+          setModel(loadedModel);
+        };
+        document.body.appendChild(script2);
+      };
+      document.body.appendChild(script1);
     };
+    loadModel();
+  }, []);
 
-    if (isCameraOpen) {
-      navigator.mediaDevices
-        .getUserMedia({
-          video: {
-            facingMode: selectedCamera
-          }
-        })
-        .then((stream) => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-          loadModel();
-        })
-        .catch((error) => {
-          console.error("Error accessing camera:", error);
-        });
-    } else {
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-    }
-
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((track) => {
-          track.stop();
-        });
-      }
-    };
-  }, [isCameraOpen, selectedCamera]);
-
-  useEffect(() => {
-    if (!user) {
-      router.push("/");
-    }
-  }, [user]);
-
-  const handleOpenCamera = () => {
-    setIsCameraOpen(true);
+  const handleImageClick = async (event) => {
+    if (!model) return;
+    const predictions = await model.detect(event.target);
+    setPredictions(predictions);
   };
 
-  const handleCameraToggle = () => {
-    setSelectedCamera((prevCamera) => (prevCamera === 'environment' ? 'user' : 'environment'));
-  };
-
-  const detectObjects = async (model) => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-
-    const detectFrame = async () => {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const predictions = await model.detect(video);
-      console.log(predictions);
-
-      predictions.forEach((prediction) => {
-        const [x, y, width, height] = prediction.bbox;
-        context.beginPath();
-        context.rect(x, y, width, height);
-        context.lineWidth = 2;
-        context.strokeStyle = "red";
-        context.fillStyle = "red";
-        context.stroke();
-        context.fillText(
-          prediction.class,
-          x,
-          y > 10 ? y - 5 : 10
-        );
-      });
-
-      requestAnimationFrame(detectFrame);
-    };
-
-    detectFrame();
-  };
-
-  useEffect(() => {
-    if (isCameraOpen && modelPromise.current) {
-      const model = modelPromise.current;
-      detectObjects(model);
+  const enableCam = async () => {
+    const video = document.getElementById('webcam');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn('getUserMedia() is not supported by your browser');
+      return;
     }
-  }, [isCameraOpen]);
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    video.addEventListener('loadeddata', () => predictWebcam(model, video));
+  };
 
   return (
-    <section>
-      <div className="bg-black mb-10">
-        <div className=" flex flex-col items-center px-4 py-16 pb-24 mx-auto text-center lg:pb-56 md:py-32 md:px-10 lg:px-32 text-gray-900">
-          <h1 className="text-5xl font-bold leadi sm:text-6xl xl:max-w-3xl text-gray-50">
-            Object Search Engine Reverse Image Search
-          </h1>
-          <p className="mt-6 mb-8 text-lg sm:mb-12 xl:max-w-3xl text-gray-50">
-            Find where images appear online. How to use Visual Cortex
-          </p>
-          <div className="flex flex-wrap items-center justify-center">
-            <button
-              type="button"
-              className="px-8 py-3 m-2 text-lg font-semibold rounded bg-gray-100 text-gray-900"
-              onClick={handleOpenCamera}
-            >
-              Open Camera
-            </button>
-            <button
-              type="button"
-              className="px-8 py-3 m-2 text-lg font-semibold rounded bg-gray-100 text-gray-900"
-              onClick={handleCameraToggle}
-            >
-              Toggle Camera
-            </button>
-          </div>
-        </div>
-      </div>
-      {isCameraOpen && (
-        <div className="flex justify-center">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ maxWidth: "100%", maxHeight: "80vh" }}
-          />
-          <canvas
-            ref={canvasRef}
-            style={{ display: "block" }} // Set display to block to make the canvas visible
-            width={640}
-            height={480}
+    <div className="container mx-auto p-4">
+      <header className="bg-orange-500 text-white p-6 mb-8 rounded">
+        <h1 className="text-3xl font-bold text-center">Sight Sense</h1>
+        <p className="text-center mt-2">Empowering Vision with Machine Learning</p>
+      </header>
+      <section className="text-center my-8">
+        <h2 className="text-2xl font-bold">Object Detection System</h2>
+        <p className="italic my-4">Click on an image below to try and recognize what is in the image using the power of Machine Learning!</p>
+      </section>
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+        <div className="relative">
+          <img
+            src="https://cdn.glitch.com/74418d0b-3465-49a2-8c71-a721b7734473%2Fdogs_flickr_publicdomain.jpg?v=1579294514974"
+            className="w-full cursor-pointer rounded shadow-lg"
+            onClick={handleImageClick}
           />
         </div>
-      )}
-      <Features />
-    </section>
+        <div className="relative">
+          <img
+            src="https://cdn.glitch.com/74418d0b-3465-49a2-8c71-a721b7734473%2Fcats_flickr_publicdomain.jpg?v=1579294753947"
+            className="w-full cursor-pointer rounded shadow-lg"
+            onClick={handleImageClick}
+          />
+        </div>
+      </section>
+      <section className="text-center my-8">
+        <h2 className="text-2xl font-bold">Live Object Detection</h2>
+        <p className="italic my-4">Hold some objects up close to your webcam to get a real-time classification!</p>
+        <div id="liveView" className="relative">
+          <button
+            id="webcamButton"
+            className="bg-orange-500 text-white p-2 rounded mb-4"
+            onClick={enableCam}
+          >
+            Enable Webcam
+          </button>
+          <video id="webcam" className="w-full rounded shadow-lg" autoPlay></video>
+        </div>
+      </section>
+      <section className="my-8">
+        <h2 className="text-2xl font-bold text-center">Predictions</h2>
+        <div className="flex flex-wrap justify-center mt-4">
+          {predictions.map((prediction, index) => (
+            <div key={index} className="bg-white shadow-lg rounded p-4 m-2 w-full sm:w-1/2 lg:w-1/3 xl:w-1/4">
+              <p className="text-gray-800 font-bold">{prediction.class}</p>
+              <p className="text-gray-600">Confidence: {Math.round(prediction.score * 100)}%</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <footer className="bg-gray-800 text-white p-4 text-center rounded mt-8">
+        <p>&copy; 2024 Sight Sense. All rights reserved.</p>
+      </footer>
+    </div>
   );
 };
 
-export default Dashboard;
+const predictWebcam = (model, video) => {
+  const liveView = document.getElementById('liveView');
+  const children = [];
+
+  const makePredictions = async () => {
+    const predictions = await model.detect(video);
+    liveView.querySelectorAll('.prediction').forEach((el) => el.remove());
+    children.splice(0);
+
+    predictions.forEach((prediction) => {
+      if (prediction.score > 0.66) {
+        const p = document.createElement('p');
+        p.className = 'absolute bg-orange-500 text-white p-1 rounded prediction';
+        p.innerText = `${prediction.class} - with ${Math.round(prediction.score * 100)}% confidence.`;
+        p.style.left = `${prediction.bbox[0]}px`;
+        p.style.top = `${prediction.bbox[1]}px`;
+        liveView.appendChild(p);
+        children.push(p);
+      }
+    });
+
+    requestAnimationFrame(makePredictions);
+  };
+
+  requestAnimationFrame(makePredictions);
+};
+
+export default Home;

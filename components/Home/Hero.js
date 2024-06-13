@@ -26,13 +26,7 @@ const Hero = () => {
             >
               Try Now
             </Link>
-            <Link
-              size="lg"
-              className="p-4 px-8"
-              href="/login"
-            >
-              Login
-            </Link>
+            
           </div>
         </div>
       </main>

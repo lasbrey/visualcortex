@@ -22,10 +22,10 @@ const menuitems = [
     title: "Contact",
     path: "/contact",
   },
-  {
-    title: "Media",
-    path: "/media",
-  },
+  // {
+  //   title: "Media",
+  //   path: "/media",
+  // },
 ];
 
 const Header = () => {
