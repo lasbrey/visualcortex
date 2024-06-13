@@ -1,130 +1,115 @@
 'use client'
-import { useEffect, useState } from 'react';
+import React, { useRef, useState, useEffect } from "react";
+import * as tf from "@tensorflow/tfjs";
+import * as cocossd from "@tensorflow-models/coco-ssd";
+import Webcam from "react-webcam";
+import { drawRect } from "./utilities"; // Make sure to implement the drawRect utility
 
-const Home = () => {
-  const [model, setModel] = useState(null);
-  const [predictions, setPredictions] = useState([]);
+const App = () => {
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState("environment");
 
-  useEffect(() => {
-    const loadModel = async () => {
-      const script1 = document.createElement('script');
-      script1.src = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js";
-      script1.onload = () => {
-        const script2 = document.createElement('script');
-        script2.src = "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd";
-        script2.onload = async () => {
-          const cocoSsd = window['cocoSsd'];
-          const loadedModel = await cocoSsd.load();
-          setModel(loadedModel);
-        };
-        document.body.appendChild(script2);
-      };
-      document.body.appendChild(script1);
-    };
-    loadModel();
-  }, []);
-
-  const handleImageClick = async (event) => {
-    if (!model) return;
-    const predictions = await model.detect(event.target);
-    setPredictions(predictions);
+  const runCoco = async () => {
+    const net = await cocossd.load();
+    console.log("COCO-SSD model loaded.");
+    setInterval(() => {
+      detect(net);
+    }, 10);
   };
 
-  const enableCam = async () => {
-    const video = document.getElementById('webcam');
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.warn('getUserMedia() is not supported by your browser');
-      return;
-    }
+  const detect = async (net) => {
+    if (
+      typeof webcamRef.current !== "undefined" &&
+      webcamRef.current !== null &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      const video = webcamRef.current.video;
+      const videoWidth = webcamRef.current.video.videoWidth;
+      const videoHeight = webcamRef.current.video.videoHeight;
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
-    video.addEventListener('loadeddata', () => predictWebcam(model, video));
+      webcamRef.current.video.width = videoWidth;
+      webcamRef.current.video.height = videoHeight;
+
+      canvasRef.current.width = videoWidth;
+      canvasRef.current.height = videoHeight;
+
+      const obj = await net.detect(video);
+
+      const ctx = canvasRef.current.getContext("2d");
+      drawRect(obj, ctx);
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraOn) {
+      runCoco();
+    }
+  }, [isCameraOn]);
+
+  const handleCameraToggle = () => {
+    setIsCameraOn((prev) => !prev);
+  };
+
+  const handleCameraSwitch = () => {
+    setCameraFacingMode((prevMode) =>
+      prevMode === "environment" ? "user" : "environment"
+    );
+    setIsCameraOn(true); // Ensure camera is turned on when switching modes
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <header className="bg-orange-500 text-white p-6 mb-8 rounded">
-        <h1 className="text-3xl font-bold text-center">Sight Sense</h1>
-        <p className="text-center mt-2">Empowering Vision with Machine Learning</p>
-      </header>
-      <section className="text-center my-8">
-        <h2 className="text-2xl font-bold">Object Detection System</h2>
-        <p className="italic my-4">Click on an image below to try and recognize what is in the image using the power of Machine Learning!</p>
-      </section>
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
-        <div className="relative">
-          <img
-            src="https://cdn.glitch.com/74418d0b-3465-49a2-8c71-a721b7734473%2Fdogs_flickr_publicdomain.jpg?v=1579294514974"
-            className="w-full cursor-pointer rounded shadow-lg"
-            onClick={handleImageClick}
-          />
-        </div>
-        <div className="relative">
-          <img
-            src="https://cdn.glitch.com/74418d0b-3465-49a2-8c71-a721b7734473%2Fcats_flickr_publicdomain.jpg?v=1579294753947"
-            className="w-full cursor-pointer rounded shadow-lg"
-            onClick={handleImageClick}
-          />
-        </div>
-      </section>
-      <section className="text-center my-8">
-        <h2 className="text-2xl font-bold">Live Object Detection</h2>
-        <p className="italic my-4">Hold some objects up close to your webcam to get a real-time classification!</p>
-        <div id="liveView" className="relative">
-          <button
-            id="webcamButton"
-            className="bg-orange-500 text-white p-2 rounded mb-4"
-            onClick={enableCam}
-          >
-            Enable Webcam
-          </button>
-          <video id="webcam" className="w-full rounded shadow-lg" autoPlay></video>
-        </div>
-      </section>
-      <section className="my-8">
-        <h2 className="text-2xl font-bold text-center">Predictions</h2>
-        <div className="flex flex-wrap justify-center mt-4">
-          {predictions.map((prediction, index) => (
-            <div key={index} className="bg-white shadow-lg rounded p-4 m-2 w-full sm:w-1/2 lg:w-1/3 xl:w-1/4">
-              <p className="text-gray-800 font-bold">{prediction.class}</p>
-              <p className="text-gray-600">Confidence: {Math.round(prediction.score * 100)}%</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
+      <header className="flex flex-col items-center justify-center w-full text-center">
+        {isCameraOn && (
+          <>
+            <Webcam
+              ref={webcamRef}
+              muted={true}
+              className="absolute left-0 right-0 mx-auto z-10 w-160 h-120"
+              videoConstraints={{ facingMode: cameraFacingMode }}
+            />
+            <canvas
+              ref={canvasRef}
+              className="absolute left-0 right-0 mx-auto z-20 w-160 h-120"
+            />
+          </>
+        )}
+        {!isCameraOn && (
+          <p className="mb-4 text-sm text-gray-400">
+            Click the button below to enable the webcam and start object detection.
+          </p>
+        )}
+        <div className="flex flex-col items-center">
+          {isCameraOn && (
+            <div className="mb-4 space-x-4">
+              <button
+                onClick={handleCameraToggle}
+                className="px-4 py-2 text-lg font-semibold rounded bg-gray-100 text-gray-900"
+              >
+                Disable Camera
+              </button>
+              <button
+                onClick={handleCameraSwitch}
+                className="px-4 py-2 text-lg font-semibold rounded bg-gray-100 text-gray-900"
+              >
+                Switch Camera
+              </button>
             </div>
-          ))}
+          )}
+          {!isCameraOn && (
+            <button
+              onClick={handleCameraToggle}
+              className="px-4 py-2 mt-4 text-lg font-semibold rounded bg-gray-100 text-gray-900"
+            >
+              Enable Camera
+            </button>
+          )}
         </div>
-      </section>
-      <footer className="bg-gray-800 text-white p-4 text-center rounded mt-8">
-        <p>&copy; 2024 Sight Sense. All rights reserved.</p>
-      </footer>
+      </header>
     </div>
   );
 };
 
-const predictWebcam = (model, video) => {
-  const liveView = document.getElementById('liveView');
-  const children = [];
-
-  const makePredictions = async () => {
-    const predictions = await model.detect(video);
-    liveView.querySelectorAll('.prediction').forEach((el) => el.remove());
-    children.splice(0);
-
-    predictions.forEach((prediction) => {
-      if (prediction.score > 0.66) {
-        const p = document.createElement('p');
-        p.className = 'absolute bg-orange-500 text-white p-1 rounded prediction';
-        p.innerText = `${prediction.class} - with ${Math.round(prediction.score * 100)}% confidence.`;
-        p.style.left = `${prediction.bbox[0]}px`;
-        p.style.top = `${prediction.bbox[1]}px`;
-        liveView.appendChild(p);
-        children.push(p);
-      }
-    });
-
-    requestAnimationFrame(makePredictions);
-  };
-
-  requestAnimationFrame(makePredictions);
-};
-
-export default Home;
+export default App;
